@@ -4,8 +4,8 @@ use Symfony\Component\HttpFoundation\ParameterBag;
 
 class Payload extends ParameterBag
 {
-    /** @var string */
-    private $secret;
+    /** @var QuerySigner */
+    private $signer;
 
     /** @var array */
     private $predefined = [ 'nonce', 'name', 'username', 'email', 'external_id',
@@ -15,14 +15,14 @@ class Payload extends ParameterBag
     /**
      * Payload Constructor.
      *
-     * @param string $secret
+     * @param QuerySigner $signer
      * @param array $parameters
      */
-    public function __construct($secret, array $parameters = [])
+    public function __construct(QuerySigner $signer, array $parameters = [])
     {
-        $this->secret = $secret;
+        $this->signer = $signer;
 
-        parent::__construct($this->remap($parameters));
+        parent::__construct($this->remapKeys($parameters));
     }
 
     /**
@@ -42,7 +42,7 @@ class Payload extends ParameterBag
     {
         $payload = base64_encode($this->getUnsigned());
 
-        return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->sign($payload) ]);
+        return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->signer->sign($payload) ]);
     }
 
     /**
@@ -50,7 +50,7 @@ class Payload extends ParameterBag
      */
     public function add(array $parameters = array())
     {
-        $parameters = $this->remap($parameters);
+        $parameters = $this->remapKeys($parameters);
 
         parent::add($parameters);
     }
@@ -64,12 +64,12 @@ class Payload extends ParameterBag
     }
 
     /**
-     * Remaps keys for custom parameters
+     * Remaps array keys for custom parameters.
      *
      * @param array $parameters
      * @return array
      */
-    private function remap(array $parameters)
+    private function remapKeys(array $parameters)
     {
         $keys = array_map(function($key) { return $this->prefix($key); }, array_keys($parameters));
 
@@ -88,26 +88,11 @@ class Payload extends ParameterBag
     }
 
     /**
-     * Signs the payload as HMAC-SHA256.
-     *
-     * @param $payload
-     * @return string
-     */
-    private function sign($payload)
-    {
-        $signer = SingleSignOn::getSigningFunction($payload);
-
-        return $signer($this->secret);
-    }
-
-    /**
      * @param string $baseUrl
      * @return string
      */
     public function toUrl($baseUrl)
     {
-        $baseUrl = substr($baseUrl, -1, 1) === '?' ? $baseUrl : $baseUrl . '?';
-
-        return $baseUrl . $this->getQueryString();
+        return $baseUrl . ( false === (strpos($baseUrl, '?')) ? '?' : '' ) . $this->getQueryString();
     }
 }

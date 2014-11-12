@@ -1,5 +1,6 @@
 <?php namespace spec\Ctrl\Discourse\Sso;
 
+use Ctrl\Discourse\Sso\QuerySigner;
 use Ctrl\Discourse\Sso\SingleSignOn;
 use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
@@ -11,53 +12,44 @@ class SingleSignOnSpec extends ObjectBehavior
         $this->shouldHaveType('Ctrl\Discourse\Sso\SingleSignOn');
     }
 
-    function it_parses_query_parameters()
+    function it_parses_query_parameters(QuerySigner $signer)
     {
-        list ($query, $secret) = SsoHelper::getSignedValues('query_params_secret');
+        $query = [ 'sso' => 'value', 'sig' => 'sig_value' ];
 
-        $this->parse($query, $secret)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
+        $signer->validates($query)->willReturn(true);
+
+        $this->parse($query, $signer)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
     }
 
-    function it_parses_a_query_string()
+    function it_parses_a_query_string(QuerySigner $signer)
     {
-        list ($query, $secret) = SsoHelper::getSignedValues('query_string_secret');
+        $query = [ 'sso' => 'value', 'sig' => 'sig_value' ];
 
-        $query = SingleSignOn::buildQuery($query);
+        $signer->validates($query)->willReturn(true);
 
-        $this->parse($query, $secret)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
+        $this->parse(SingleSignOn::buildQuery($query), $signer)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
     }
 
-    function it_throws_exceptions_for_signature_mismatch()
+    function it_throws_exceptions_for_invalid_signatures(QuerySigner $signer)
     {
-        list ($query) = SsoHelper::getSignedValues('theSecretKey');
+        $query = [ 'sso' => 'value', 'sig' => 'sig_value' ];
 
-        $this->shouldThrow('\RuntimeException')->duringParse($query, 'notTheSecretKey');
+        $signer->validates($query)->willReturn(false);
+
+        $this->shouldThrow('\RuntimeException')->duringParse($query, $signer);
     }
 
-    function it_parses_valid_payloads()
+    function its_payload_contains_the_nonce(QuerySigner $signer)
     {
-        list ($query, $secret) = SsoHelper::getSignedValues('parse_valid_secret');
-
-        $this->parse($query, $secret)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
-    }
-
-    function its_payload_contains_the_nonce()
-    {
-        list ($query, $secret) = SsoHelper::getSignedValues('parse_valid_secret');
-
-        $this->parse($query, $secret)->get('nonce')->shouldBeString();
-    }
-}
-
-class SsoHelper
-{
-    public static function getSignedValues($secret)
-    {
-        $payload    = SingleSignOn::buildQuery([ 'nonce' => uniqid() ]);
+        $payload    = SingleSignOn::buildQuery([ 'nonce' => 'some_nonce' ]);
         $sso        = base64_encode($payload);
-        $sig        = hash_hmac('sha256', $sso, $secret);
+        $sig        = hash_hmac('sha256', $sso, 'secret');
         $query      = [ 'sso' => $sso, 'sig' => $sig ];
 
-        return [ $query, $secret, $payload, $sso, $sig ];
+        $signer->validates($query)->willReturn('true');
+
+        $signer->sign($payload)->willReturn($sig);
+
+        $this->parse($query, $signer)->get('nonce')->shouldBeString();
     }
 }

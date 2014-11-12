@@ -5,23 +5,23 @@ use Symfony\Component\HttpFoundation\Request;
 class SingleSignOn
 {
     /**
-     * Converts a queryString and signing key into a Payload.
+     * Converts query string parameters into a Payload.
      *
-     * @param array|string $query
-     * @param string $signingKey
+     * @param $query
+     * @param QuerySigner $signer
      * @return Payload
      */
-    public function parse($query, $signingKey)
+    public function parse($query, QuerySigner $signer)
     {
         if (is_string($query)) {
             $query = $this->getQueryAsParameters($query);
         }
 
-        if (! $this->validates($query, $signingKey)) {
+        if (! $signer->validates($query)) {
             throw new \RuntimeException('Bad signature for payload.');
         }
 
-        return new Payload($signingKey, $this->getQueryAsParameters(base64_decode($query['sso'])));
+        return new Payload($signer, $this->getQueryAsParameters(base64_decode($query['sso'])));
     }
 
     /**
@@ -38,24 +38,6 @@ class SingleSignOn
     }
 
     /**
-     * Checks the payload against the signature generated with the secret key.
-     *
-     * @param array $query
-     * @param string $signingKey
-     * @return bool
-     */
-    private function validates(array $query, $signingKey)
-    {
-        if (! isset ($query['sso'], $query['sig'])) {
-            return false;
-        }
-
-        $signer = self::getSigningFunction($query['sso']);
-
-        return $signer($signingKey) === $query['sig'];
-    }
-
-    /**
      * Builds a normalized query string from the given parameters.
      *
      * @param array $params
@@ -64,18 +46,5 @@ class SingleSignOn
     static public function buildQuery(array $params)
     {
         return Request::normalizeQueryString(http_build_query($params, null, '&'));
-    }
-
-    /**
-     * Returns a function capable of signing the payload when given a signing key.
-     *
-     * @param string $payload
-     * @return callable
-     */
-    static public function getSigningFunction($payload)
-    {
-        return function ($key) use ($payload) {
-            return hash_hmac('sha256', $payload, $key);
-        };
     }
 }
