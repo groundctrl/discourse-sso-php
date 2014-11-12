@@ -13,6 +13,8 @@ class Payload extends ParameterBag
     ];
 
     /**
+     * Payload Constructor.
+     *
      * @param string $secret
      * @param array $parameters
      */
@@ -20,7 +22,7 @@ class Payload extends ParameterBag
     {
         $this->secret = $secret;
 
-        parent::__construct($parameters);
+        parent::__construct($this->remap($parameters));
     }
 
     /**
@@ -48,13 +50,9 @@ class Payload extends ParameterBag
      */
     public function add(array $parameters = array())
     {
-        $params = [];
-        foreach ($parameters as $key => $value) {
-            $pKey = $this->prefix($key);
-            $params[$pKey] = $value;
-        }
+        $parameters = $this->remap($parameters);
 
-        parent::add($params);
+        parent::add($parameters);
     }
 
     /**
@@ -66,6 +64,19 @@ class Payload extends ParameterBag
     }
 
     /**
+     * Remaps keys for custom parameters
+     *
+     * @param array $parameters
+     * @return array
+     */
+    private function remap(array $parameters)
+    {
+        $keys = array_map(function($key) { return $this->prefix($key); }, array_keys($parameters));
+
+        return array_combine($keys, array_values($parameters));
+    }
+
+    /**
      * Prefixes a parameter with "custom." if the parameter is not predefined.
      *
      * @param string $key
@@ -73,7 +84,7 @@ class Payload extends ParameterBag
      */
     private function prefix($key)
     {
-        return ! in_array($key, $this->predefined) ? 'custom.' . $key : $key;
+        return ( in_array($key, $this->predefined) || 'custom.' === substr($key, 0, 7) ) ? $key : 'custom.' . $key;
     }
 
     /**

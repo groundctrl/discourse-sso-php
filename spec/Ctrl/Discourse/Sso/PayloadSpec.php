@@ -66,6 +66,15 @@ class PayloadSpec extends ObjectBehavior
         ]));
     }
 
+    function it_does_not_double_prefix_custom_keys()
+    {
+        $params = [ 'nonce' => 'nonce', 'email' => 'spec@example.com', 'custom.user_url' => 'http://example.com' ];
+
+        $this->beConstructedWith('secret', $params);
+
+        $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery($params));
+    }
+
     function it_gets_a_query_string()
     {
         $secret = 'signing_key';
