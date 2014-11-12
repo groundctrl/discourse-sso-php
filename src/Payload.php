@@ -25,7 +25,7 @@ class Payload extends ParameterBag
      */
     public function getUnsigned()
     {
-        return $this->buildQuery($this->parameters);
+        return SingleSignOn::buildQuery($this->parameters);
     }
 
     /**
@@ -34,27 +34,21 @@ class Payload extends ParameterBag
     public function getQueryString()
     {
         $payload = base64_encode($this->getUnsigned());
-        return $this->buildQuery([ 'sso' => $payload, 'sig' => $this->sign($payload) ]);
+
+        return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->sign($payload) ]);
     }
 
     /**
-     * Builds an » RFC 3986 query string from the given parameters.
+     * Signs the payload as HMAC-SHA256.
      *
-     * @param array $params
-     * @return string
-     */
-    private function buildQuery(array $params = [])
-    {
-        return http_build_query($params, null, null, PHP_QUERY_RFC3986);
-    }
-
-    /**
      * @param $payload
      * @return string
      */
     private function sign($payload)
     {
-        return hash_hmac('sha256', $payload, $this->secret);
+        $signer = SingleSignOn::getSigningFunction($payload);
+
+        return $signer($this->secret);
     }
 
     /**

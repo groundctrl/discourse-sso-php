@@ -1,5 +1,6 @@
 <?php namespace spec\Ctrl\Discourse\Sso;
 
+use Ctrl\Discourse\Sso\SingleSignOn;
 use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
 
@@ -27,7 +28,7 @@ class PayloadSpec extends ObjectBehavior
     function it_gets_a_query_string()
     {
         $params     = [ 'nonce' => 'nonce' ];
-        $unsigned   = http_build_query($params, null, null, PHP_QUERY_RFC3986);
+        $unsigned   = SingleSignOn::buildQuery($params);
         $encoded    = base64_encode($unsigned);
         $signed     = hash_hmac('sha256', $encoded, self::$specKey);
 
@@ -36,7 +37,9 @@ class PayloadSpec extends ObjectBehavior
 
     function it_can_be_converted_to_a_url()
     {
-        $this->toUrl('http://s.discourse')->shouldBe('http://s.discourse?' . $this->getQueryString()->getWrappedObject());
+        $realQueryString = $this->getQueryString()->getWrappedObject();
+
+        $this->toUrl('http://s.discourse')->shouldBe('http://s.discourse?' . $realQueryString);
     }
 
     /**
@@ -49,8 +52,8 @@ class PayloadSpec extends ObjectBehavior
     public function getMatchers()
     {
         return [
-            'buildQueryString' => function($subject, $params) {
-                return $subject === http_build_query($params, null, null, PHP_QUERY_RFC3986);
+            'buildQueryString' => function ($subject, $params) {
+                return $subject === SingleSignOn::buildQuery($params);
             },
         ];
     }
