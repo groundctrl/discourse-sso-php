@@ -10,9 +10,7 @@ class PayloadSpec extends ObjectBehavior
 
     function let()
     {
-        $this->beConstructedWith(self::$specKey, [
-            'nonce' => 'nonce',
-        ]);
+        $this->beConstructedWith(self::$specKey);
     }
 
     function it_is_a_parameter_bag()
@@ -22,7 +20,10 @@ class PayloadSpec extends ObjectBehavior
 
     function it_gets_an_unsigned_payload()
     {
-        $this->getUnsigned()->shouldBuildQueryString([ 'nonce' => 'nonce' ]);
+        $params = [ 'nonce' => 'nonce' ];
+        $this->replace($params);
+
+        $this->getUnsigned()->shouldBuildQueryString($params);
     }
 
     function it_gets_a_query_string()
@@ -32,11 +33,14 @@ class PayloadSpec extends ObjectBehavior
         $encoded    = base64_encode($unsigned);
         $signed     = hash_hmac('sha256', $encoded, self::$specKey);
 
+        $this->replace($params);
         $this->getQueryString()->shouldBuildQueryString([ 'sso' => $encoded, 'sig' => $signed ]);
     }
 
     function it_can_be_converted_to_a_url()
     {
+        $this->replace([ 'nonce' => 'nonce' ]);
+
         $realQueryString = $this->getQueryString()->getWrappedObject();
 
         $this->toUrl('http://s.discourse')->shouldBe('http://s.discourse?' . $realQueryString);
