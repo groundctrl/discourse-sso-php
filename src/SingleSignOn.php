@@ -1,5 +1,7 @@
 <?php namespace Ctrl\Discourse\Sso;
 
+use Symfony\Component\HttpFoundation\Request;
+
 class SingleSignOn
 {
     /**
@@ -54,14 +56,14 @@ class SingleSignOn
     }
 
     /**
-     * Builds a query string, according to » RFC 1738, with the given parameters.
+     * Builds a normalized query string from the given parameters.
      *
      * @param array $params
      * @return string
      */
     static public function buildQuery(array $params)
     {
-        return http_build_query($params);
+        return Request::normalizeQueryString(http_build_query($params, null, '&'));
     }
 
     /**
