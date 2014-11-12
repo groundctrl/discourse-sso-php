@@ -40,6 +40,13 @@ class SingleSignOnSpec extends ObjectBehavior
 
         $this->parse($query, $secret)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
     }
+
+    function its_payload_contains_the_nonce()
+    {
+        list ($query, $secret) = SsoHelper::getSignedValues('parse_valid_secret');
+
+        $this->parse($query, $secret)->get('nonce')->shouldBeString();
+    }
 }
 
 class SsoHelper

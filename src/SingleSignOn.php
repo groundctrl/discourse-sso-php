@@ -21,7 +21,7 @@ class SingleSignOn
             throw new \RuntimeException('Bad signature for payload.');
         }
 
-        return new Payload($signingKey, $query);
+        return new Payload($signingKey, $this->getQueryAsParameters(base64_decode($query['sso'])));
     }
 
     /**
