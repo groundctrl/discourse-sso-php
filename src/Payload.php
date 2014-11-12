@@ -7,6 +7,11 @@ class Payload extends ParameterBag
     /** @var string */
     private $secret;
 
+    /** @var array */
+    private $predefined = [ 'nonce', 'name', 'username', 'email', 'external_id',
+        'avatar_url', 'avatar_force_update', 'about_me', 'external_id'
+    ];
+
     /**
      * @param string $secret
      * @param array $parameters
@@ -36,6 +41,39 @@ class Payload extends ParameterBag
         $payload = base64_encode($this->getUnsigned());
 
         return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->sign($payload) ]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function add(array $parameters = array())
+    {
+        $params = [];
+        foreach ($parameters as $key => $value) {
+            $pKey = $this->prefix($key);
+            $params[$pKey] = $value;
+        }
+
+        parent::add($params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function set($key, $value)
+    {
+        parent::set($this->prefix($key), $value);
+    }
+
+    /**
+     * Prefixes a parameter with "custom." if the parameter is not predefined.
+     *
+     * @param string $key
+     * @return string
+     */
+    private function prefix($key)
+    {
+        return ! in_array($key, $this->predefined) ? 'custom.' . $key : $key;
     }
 
     /**

@@ -6,11 +6,9 @@ use Prophecy\Argument;
 
 class PayloadSpec extends ObjectBehavior
 {
-    static public $specKey = 'S1gN!nGk3Y';
-
     function let()
     {
-        $this->beConstructedWith(self::$specKey);
+        $this->beConstructedWith('secret', [ 'nonce' => 'nonce' ]);
     }
 
     function it_is_a_parameter_bag()
@@ -20,21 +18,66 @@ class PayloadSpec extends ObjectBehavior
 
     function it_gets_an_unsigned_payload()
     {
-        $params = [ 'nonce' => 'nonce' ];
-        $this->replace($params);
+        $params = [ 'nonce' => uniqid() ];
 
-        $this->getUnsigned()->shouldBuildQueryString($params);
+        $this->beConstructedWith('signing_key', $params);
+
+        $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery($params));
+    }
+
+    function it_sets_a_required_parameter()
+    {
+        $this->set('username', 'specuser');
+
+        $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery([ 'nonce' => 'nonce', 'username' => 'specuser' ]));
+    }
+
+    function it_adds_required_parameters()
+    {
+        $params = [
+            'username'      => 'specuser',
+            'email'         => 'specuser@example.org',
+            'external_id'   => rand(1, 999),
+        ];
+
+        $this->add($params);
+
+        $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery($params + [ 'nonce' => 'nonce' ]));
+    }
+
+    function it_prefixes_custom_parameters_on_set()
+    {
+        $this->set('foo', 'bar');
+
+        $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery([ 'nonce' => 'nonce', 'custom.foo' => 'bar' ]));
+    }
+
+    function it_prefixes_custom_parameters_on_add()
+    {
+        $this->add([
+            'username' => 'specuser',
+            'foos' => 'bars'
+        ]);
+
+        $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery([
+            'nonce' => 'nonce',
+            'username' => 'specuser',
+            'custom.foos' => 'bars'
+        ]));
     }
 
     function it_gets_a_query_string()
     {
-        $params     = [ 'nonce' => 'nonce' ];
+        $secret = 'signing_key';
+        $params = [ 'nonce' => 'nonce' ];
+
+        $this->beConstructedWith($secret, $params);
+
         $unsigned   = SingleSignOn::buildQuery($params);
         $encoded    = base64_encode($unsigned);
-        $signed     = hash_hmac('sha256', $encoded, self::$specKey);
+        $signed     = hash_hmac('sha256', $encoded, $secret);
 
-        $this->replace($params);
-        $this->getQueryString()->shouldBuildQueryString([ 'sso' => $encoded, 'sig' => $signed ]);
+        $this->getQueryString()->shouldBe(SingleSignOn::buildQuery([ 'sso' => $encoded, 'sig' => $signed ]));
     }
 
     function it_can_be_converted_to_a_url()
@@ -44,21 +87,5 @@ class PayloadSpec extends ObjectBehavior
         $realQueryString = $this->getQueryString()->getWrappedObject();
 
         $this->toUrl('http://s.discourse')->shouldBe('http://s.discourse?' . $realQueryString);
-    }
-
-    /**
-     * Custom Matchers:
-     *
-     * - buildQueryString: Checks a method that returns a queryString against an array of values.
-     *
-     * @return array
-     */
-    public function getMatchers()
-    {
-        return [
-            'buildQueryString' => function ($subject, $params) {
-                return $subject === SingleSignOn::buildQuery($params);
-            },
-        ];
     }
 }
