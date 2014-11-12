@@ -1,0 +1,5 @@
+formatter.name: pretty
+suites:
+  discourse_sso_suite:
+    namespace: Ctrl\Discourse\Sso
+    psr4_prefix: Ctrl\Discourse\Sso

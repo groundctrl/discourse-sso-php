@@ -1,0 +1,23 @@
+{
+    "name": "groundctrl/discourse-sso-php",
+    "description": "Discourse SSO for offsite logins",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ground(ctrl)",
+            "homepage": "https://github.com/groundctrl/discourse-sso-php/contributors"
+        }
+    ],
+    "require": {
+        "php": ">= 5.4",
+        "symfony/http-foundation": "~2.1"
+    },
+    "require-dev": {
+        "phpspec/phpspec": "2.1.0-RC1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ctrl\\Discourse\\Sso\\": "src"
+        }
+    }
+}
