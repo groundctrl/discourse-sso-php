@@ -1,0 +1,2 @@
+Discourse SSO for PHP
+=====================
