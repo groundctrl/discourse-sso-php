@@ -4,6 +4,18 @@ use Symfony\Component\HttpFoundation\Request;
 
 class SingleSignOn
 {
+    /** @var QuerySigner */
+    private $signer;
+
+    /**
+     * Single
+     * @param QuerySigner $signer
+     */
+    public function __construct(QuerySigner $signer = null)
+    {
+        $this->signer = $signer;
+    }
+
     /**
      * Converts query string parameters into a Payload.
      *
@@ -11,8 +23,13 @@ class SingleSignOn
      * @param QuerySigner $signer
      * @return Payload
      */
-    public function parse($query, QuerySigner $signer)
+    public function parse($query, QuerySigner $signer = null)
     {
+        $signer = $signer ?: $this->signer;
+        if (null === $signer) {
+            throw new \RuntimeException('QuerySigner not set on construct, be sure to pass it on parse.');
+        }
+
         if (is_string($query)) {
             $query = $this->getQueryAsParameters($query);
         }

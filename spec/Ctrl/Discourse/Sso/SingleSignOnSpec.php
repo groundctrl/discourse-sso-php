@@ -12,6 +12,21 @@ class SingleSignOnSpec extends ObjectBehavior
         $this->shouldHaveType('Ctrl\Discourse\Sso\SingleSignOn');
     }
 
+    function it_can_be_constructed_with_a_QuerySigner(QuerySigner $signer)
+    {
+        $this->beConstructedWith($signer);
+
+        $query = [ 'sso' => 'value', 'sig' => 'sig_value' ];
+        $signer->validates($query)->shouldBeCalled()->willReturn(true);
+
+        $this->parse($query)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
+    }
+
+    function it_cannot_parse_without_a_QuerySigner($query)
+    {
+        $this->shouldThrow('\RuntimeException')->duringParse($query);
+    }
+
     function it_parses_query_parameters(QuerySigner $signer)
     {
         $query = [ 'sso' => 'value', 'sig' => 'sig_value' ];
