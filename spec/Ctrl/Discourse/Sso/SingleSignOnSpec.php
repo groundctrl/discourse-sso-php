@@ -65,6 +65,6 @@ class SingleSignOnSpec extends ObjectBehavior
 
         $signer->sign($payload)->willReturn($sig);
 
-        $this->parse($query, $signer)->get('nonce')->shouldBeString();
+        $this->parse($query, $signer)->all()->shouldHaveKey('nonce');
     }
 }

@@ -12,11 +12,6 @@ class PayloadSpec extends ObjectBehavior
         $this->beConstructedWith($signer, [ 'nonce' => 'nonce' ]);
     }
 
-    function it_is_a_parameter_bag()
-    {
-        $this->shouldHaveType('Symfony\Component\HttpFoundation\ParameterBag');
-    }
-
     function it_gets_an_unsigned_payload()
     {
         $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery([ 'nonce' => 'nonce' ]));
@@ -84,8 +79,6 @@ class PayloadSpec extends ObjectBehavior
 
     function it_can_be_converted_to_a_url()
     {
-        $this->replace([ 'nonce' => 'nonce' ]);
-
         $realQueryString = $this->getQueryString()->getWrappedObject();
 
         $this->toUrl('http://s.discourse')->shouldBe('http://s.discourse?' . $realQueryString);

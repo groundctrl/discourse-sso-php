@@ -1,11 +1,12 @@
 <?php namespace Ctrl\Discourse\Sso;
 
-use Symfony\Component\HttpFoundation\ParameterBag;
-
-class Payload extends ParameterBag
+class Payload implements \IteratorAggregate, \Countable
 {
     /** @var QuerySigner */
     private $signer;
+
+    /** @var array */
+    private $parameters;
 
     /** @var array */
     private $predefined = [ 'nonce', 'name', 'username', 'email', 'external_id',
@@ -22,7 +23,7 @@ class Payload extends ParameterBag
     {
         $this->signer = $signer;
 
-        parent::__construct($this->remapKeys($parameters));
+        $this->parameters = $this->remapKeys($parameters);
     }
 
     /**
@@ -46,13 +47,19 @@ class Payload extends ParameterBag
     }
 
     /**
+     * @return array
+     */
+    public function all()
+    {
+        return $this->parameters;
+    }
+
+    /**
      * {@inheritDoc}
      */
-    public function add(array $parameters = array())
+    public function add(array $parameters = [])
     {
-        $parameters = $this->remapKeys($parameters);
-
-        parent::add($parameters);
+        $this->parameters = array_replace($this->parameters, $this->remapKeys($parameters));
     }
 
     /**
@@ -60,7 +67,7 @@ class Payload extends ParameterBag
      */
     public function set($key, $value)
     {
-        parent::set($this->prefix($key), $value);
+        $this->parameters[ $this->prefix($key) ] = $value;
     }
 
     /**
@@ -94,5 +101,21 @@ class Payload extends ParameterBag
     public function toUrl($baseUrl)
     {
         return $baseUrl . ( false === (strpos($baseUrl, '?')) ? '?' : '' ) . $this->getQueryString();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->parameters);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function count()
+    {
+        return count($this->parameters);
     }
 }
