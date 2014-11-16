@@ -43,13 +43,15 @@ class SingleSignOn
     /**
      * Returns the queryString as an array of parameters.
      *
-     * @param string $queryString
+     * @param string $query
      * @return array
      */
-    private function queryStringToArray($queryString)
+    private function queryStringToArray($query)
     {
         $params = [];
-        parse_str($queryString, $params);
+        $url = parse_url($query);
+        $query = isset($url['query']) ? $url['query'] : $url['path'];
+        parse_str($query, $params);
         return $params;
     }
 

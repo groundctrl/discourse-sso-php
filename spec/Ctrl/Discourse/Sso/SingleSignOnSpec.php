@@ -45,6 +45,16 @@ class SingleSignOnSpec extends ObjectBehavior
         $this->parse(SingleSignOn::buildQuery($query), $signer)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
     }
 
+    function it_parses_a_url_string(QuerySigner $signer)
+    {
+        $params = [ 'sso' => 'foo', 'sig' => 'bar' ];
+        $query = 'http://example.com/discourse/sso_login?' . SingleSignOn::buildQuery($params);
+
+        $signer->validates($params)->willReturn(true);
+
+        $this->parse($query, $signer)->shouldReturnAnInstanceOf('Ctrl\Discourse\Sso\Payload');
+    }
+
     function it_throws_exceptions_for_invalid_signatures(QuerySigner $signer)
     {
         $query = [ 'sso' => 'value', 'sig' => 'sig_value' ];
