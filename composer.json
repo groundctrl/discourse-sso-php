@@ -1,5 +1,5 @@
 {
-    "name": "groundctrl/discourse-sso-php",
+    "name": "ctrl/discourse-sso",
     "description": "Discourse SSO for offsite logins",
     "license": "MIT",
     "authors": [
