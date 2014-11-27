@@ -2,13 +2,20 @@
 
 class QuerySigner
 {
+    /** @var Secret */
     private $secret;
 
     /**
-     * @param string $secret
+     * QuerySigner Constructor.
+     *
+     * @param string|Secret $secret
      */
     public function __construct($secret)
     {
+        if (! $secret instanceof Secret) {
+            $secret = new Secret($secret);
+        }
+
         $this->secret = $secret;
     }
 
@@ -20,7 +27,7 @@ class QuerySigner
      */
     public function sign($payload)
     {
-        return hash_hmac('sha256', $payload, $this->secret);
+        return $this->secret->sign($payload);
     }
 
     /**
@@ -35,6 +42,6 @@ class QuerySigner
             return false;
         }
 
-        return $query['sig'] === $this->sign($query['sso']);
+        return $query['sig'] === $this->secret->sign($query['sso']);
     }
 }

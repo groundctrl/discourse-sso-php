@@ -1,27 +1,27 @@
 <?php namespace spec\Ctrl\Discourse\Sso;
 
+use Ctrl\Discourse\Sso\Secret;
 use Ctrl\Discourse\Sso\SingleSignOn;
 use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
 
 class QuerySignerSpec extends ObjectBehavior
 {
-    function let()
+    function let(Secret $secret)
     {
-        $this->beConstructedWith('secret');
+        $secret->__toString()->willReturn('secret');
+
+        $this->beConstructedWith($secret);
     }
 
-    function it_signs_a_payload()
-    {
-        $payload = SingleSignOn::buildQuery([ 'nonce' => 'foo', 'username' => 'specuser' ]);
-
-        $this->sign($payload)->shouldComputeHash($payload, 'secret');
-    }
-
-    function it_validates_query_parameters()
+    function it_validates_query_parameters($secret)
     {
         $data   = SingleSignOn::buildQuery([ 'nonce' => uniqid() ]);
         $sso    = base64_encode($data);
+        $sig    = hash_hmac('sha256', $sso, 'secret');
+
+        $secret->sign($sso)->willReturn($sig);
+
         $sig    = hash_hmac('sha256', $sso, 'secret');
         $query  = [ 'sso' => $sso, 'sig' => $sig ];
 
@@ -48,21 +48,5 @@ class QuerySignerSpec extends ObjectBehavior
     function it_does_not_validate_if_missing_sig()
     {
         $this->validates(SingleSignOn::buildQuery([ 'sso' => 'nonce=payload' ]))->shouldBe(false);
-    }
-
-    /**
-     * Custom Matchers
-     *
-     * - computeHash: ensures the payload is signed via the correct hash function.
-     *
-     * @return array
-     */
-    public function getMatchers()
-    {
-        return [
-            'computeHash' => function ($subject, $value, $secret) {
-                return $subject === hash_hmac('sha256', $value, $secret);
-            }
-        ];
     }
 }
