@@ -1,15 +1,16 @@
 <?php namespace spec\Ctrl\Discourse\Sso;
 
 use Ctrl\Discourse\Sso\QuerySigner;
+use Ctrl\Discourse\Sso\Secret;
 use Ctrl\Discourse\Sso\SingleSignOn;
 use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
 
 class PayloadSpec extends ObjectBehavior
 {
-    function let(QuerySigner $signer)
+    function let()
     {
-        $this->beConstructedWith($signer, [ 'nonce' => 'nonce' ]);
+        $this->beConstructedWith([ 'nonce' => 'nonce' ]);
     }
 
     function it_gets_an_unsigned_payload()
@@ -67,18 +68,45 @@ class PayloadSpec extends ObjectBehavior
         $this->getUnsigned()->shouldBe(SingleSignOn::buildQuery($params + [ 'nonce' => 'nonce' ]));
     }
 
-    function it_gets_a_query_string(QuerySigner $signer)
+    function it_requires_a_secret_key_to_create_a_query_string()
     {
+        $this->beConstructedWith([ 'nonce' => 'nonce' ]);
+
+        $this->shouldThrow()->duringGetQueryString();
+    }
+
+    function it_accepts_a_special_sso_secret_parameter_on_construct(Secret $secret)
+    {
+        $this->beConstructedWith([ 'nonce' => 'nonce', 'sso_secret' => $secret ]);
+
+        $this->shouldHaveCount(1);
+
+        $this->all()->shouldHaveKey('nonce');
+    }
+
+    function it_accepts_set_sso_secret(Secret $secret)
+    {
+        $this->set('sso_secret', $secret);
+
+        $this->shouldHaveCount(1);
+    }
+
+    function it_gets_a_query_string(Secret $secret)
+    {
+        $this->setSecret($secret);
+
         $payload = SingleSignOn::buildQuery([ 'nonce' => 'nonce' ]);
         $sso = base64_encode($payload);
 
-        $signer->sign($sso)->shouldBeCalled()->willReturn('signature');
+        $secret->sign($sso)->shouldBeCalled()->willReturn('signature');
 
         $this->getQueryString()->shouldBe(SingleSignOn::buildQuery([ 'sso' => $sso, 'sig' => 'signature' ]));
     }
 
-    function it_can_be_converted_to_a_url()
+    function it_can_be_converted_to_a_url(Secret $secret)
     {
+        $this->setSecret($secret);
+
         $realQueryString = $this->getQueryString()->getWrappedObject();
 
         $this->toUrl('http://s.discourse')->shouldBe('http://s.discourse?' . $realQueryString);

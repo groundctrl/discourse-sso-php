@@ -4,42 +4,59 @@ class SingleSignOn
 {
     const VERSION = '1.0.0';
 
-    /** @var QuerySigner */
-    private $signer;
+    /** @var Secret */
+    private $secret;
 
     /**
      * SingleSignOn Constructor.
      *
-     * @param QuerySigner $signer
+     * @param string|Secret $key
      */
-    public function __construct(QuerySigner $signer = null)
+    public function __construct($key = null)
     {
-        $this->signer = $signer;
+        if ($key) {
+            $this->secret = Secret::create($key);
+        }
     }
 
     /**
      * Converts query string parameters into a Payload.
      *
-     * @param $query
-     * @param QuerySigner $signer
+     * @param mixed $query A query string, or a collection of query parameters.
+     * @param Secret $secret
      * @return Payload
      */
-    public function parse($query, QuerySigner $signer = null)
+    public function parse($query, $secret = null)
     {
-        $signer = $signer ?: $this->signer;
-        if (null === $signer) {
-            throw new \RuntimeException('QuerySigner not set on construct, be sure to pass it on parse.');
+        $secret = $secret ? Secret::create($secret) : $this->secret;
+        if (null === $secret) {
+            throw new \RuntimeException('Secret not set on instance, be sure to pass it on parse.');
         }
 
-        if (is_string($query)) {
-            $query = $this->queryStringToArray($query);
-        }
+        $query = $this->normalize($query);
 
-        if (! $signer->validates($query)) {
+        if (! SingleSignOn::validates($query, $secret)) {
             throw new \RuntimeException('Bad signature for payload.');
         }
 
-        return new Payload($signer, $this->queryStringToArray(base64_decode($query['sso'])));
+        $data = $this->queryStringToArray(base64_decode($query['sso']));
+
+        return new Payload($data + [ 'sso_secret' => $secret ]);
+    }
+
+    /**
+     * Normalizes mixed query arguments into a parameter hash.
+     *
+     * @param mixed $query
+     * @return array
+     */
+    private function normalize($query)
+    {
+        if (is_array($query)) {
+            return $query;
+        }
+
+        return $this->queryStringToArray($query);
     }
 
     /**
@@ -99,5 +116,21 @@ class SingleSignOn
         array_multisort($order, SORT_ASC, $parts);
 
         return implode('&', $parts);
+    }
+
+    /**
+     * Checks the payload against the signature generated with the secret key.
+     *
+     * @param array $query
+     * @param Secret $secret
+     * @return bool
+     */
+    static public function validates($query, Secret $secret)
+    {
+        if (! isset ($query['sso'], $query['sig'])) {
+            return false;
+        }
+
+        return $query['sig'] === $secret->sign($query['sso']);
     }
 }

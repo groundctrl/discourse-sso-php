@@ -2,8 +2,8 @@
 
 class Payload implements \IteratorAggregate, \Countable
 {
-    /** @var QuerySigner */
-    private $signer;
+    /** @var Secret */
+    private $secret;
 
     /** @var array */
     private $parameters;
@@ -16,12 +16,14 @@ class Payload implements \IteratorAggregate, \Countable
     /**
      * Payload Constructor.
      *
-     * @param QuerySigner $signer
      * @param array $parameters
      */
-    public function __construct(QuerySigner $signer, array $parameters = [])
+    public function __construct($parameters = [])
     {
-        $this->signer = $signer;
+        if (isset ($parameters['sso_secret'])) {
+            $this->setSecret($parameters['sso_secret']);
+            unset ($parameters['sso_secret']);
+        }
 
         $this->parameters = $this->remapKeys($parameters);
     }
@@ -41,9 +43,13 @@ class Payload implements \IteratorAggregate, \Countable
      */
     public function getQueryString()
     {
+        if (! $this->secret) {
+            throw new \RuntimeException('No secret key defined for this payload.');
+        }
+
         $payload = base64_encode($this->getUnsigned());
 
-        return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->signer->sign($payload) ]);
+        return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->secret->sign($payload) ]);
     }
 
     /**
@@ -67,7 +73,24 @@ class Payload implements \IteratorAggregate, \Countable
      */
     public function set($key, $value)
     {
+        if ('sso_secret' === $key) {
+            $this->setSecret($key);
+            return;
+        }
+
         $this->parameters[ $this->prefix($key) ] = $value;
+    }
+
+    /**
+     * Sets the secret key for signing Payload URLs.
+     *
+     * @param string|Secret $key
+     * @return $this
+     */
+    public function setSecret($key)
+    {
+        $this->secret = Secret::create($key);
+        return $this;
     }
 
     /**

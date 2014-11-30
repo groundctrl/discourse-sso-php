@@ -1,10 +1,12 @@
 <?php namespace Ctrl\Discourse\Sso;
 
 /**
- * Secret key for signing requests.
+ * Secret is a key for signing requests.
  */
 class Secret
 {
+    const METHOD = 'sha256';
+
     /** @var string */
     private $key;
 
@@ -26,7 +28,7 @@ class Secret
      */
     public function sign($payload)
     {
-        return hash_hmac('sha256', $payload, $this->key);
+        return hash_hmac(Secret::METHOD, $payload, $this->key);
     }
 
     /**
@@ -37,5 +39,16 @@ class Secret
     public function __toString()
     {
         return $this->key;
+    }
+
+    /**
+     * Factory method for creating Secrets.
+     *
+     * @param $key
+     * @return Secret
+     */
+    public static function create($key)
+    {
+        return $key instanceof Secret ? $key : new Secret($key);
     }
 }
