@@ -1,31 +1,33 @@
 <?php namespace Ctrl\Discourse\Sso;
 
-class Payload implements \IteratorAggregate, \Countable
+class Payload extends DataObject
 {
-    /** @var Secret */
-    private $secret;
-
     /** @var array */
-    private $parameters;
-
-    /** @var array */
-    private $predefined = [ 'nonce', 'name', 'username', 'email', 'external_id',
-        'avatar_url', 'avatar_force_update', 'about_me', 'external_id'
+    private $accessors = [ 'nonce', 'name', 'username', 'email', 'external_id',
+        'avatar_url', 'avatar_force_update', 'about_me', 'return_sso_url'
     ];
+
+    /** @var array */
+    private $attributes = [ 'sso_secret', 'sso_url' ];
+
+    /** @var array */
+    private $reserved = [];
+
+    /** @var array */
+    private $customFields = [];
 
     /**
      * Payload Constructor.
      *
      * @param array $parameters
      */
-    public function __construct($parameters = [])
+    public function __construct(array $parameters = [])
     {
-        if (isset ($parameters['sso_secret'])) {
-            $this->setSecret($parameters['sso_secret']);
-            unset ($parameters['sso_secret']);
-        }
+        $this->reserved = array_merge($this->accessors, $this->attributes);
 
-        $this->parameters = $this->remapKeys($parameters);
+        $this->resolveCustom($parameters);
+
+        parent::__construct($parameters);
     }
 
     /**
@@ -35,7 +37,17 @@ class Payload implements \IteratorAggregate, \Countable
      */
     public function getUnsigned()
     {
-        return SingleSignOn::buildQuery($this->parameters);
+        $payload = [];
+
+        foreach ($this->data as $key => $value) {
+            if (in_array($key, $this->accessors)) {
+                $payload[$key] = $value;
+            } elseif (in_array($key, $this->customFields)) {
+                $payload['custom.'.$key] = $value;
+            }
+        }
+
+        return QueryString::normalize($payload);
     }
 
     /**
@@ -43,21 +55,14 @@ class Payload implements \IteratorAggregate, \Countable
      */
     public function getQueryString()
     {
-        if (! $this->secret) {
+        if (! isset ($this->data['sso_secret'])) {
             throw new \RuntimeException('No secret key defined for this payload.');
         }
 
+        $secret = Secret::create($this->data['sso_secret']);
         $payload = base64_encode($this->getUnsigned());
 
-        return SingleSignOn::buildQuery([ 'sso' => $payload, 'sig' => $this->secret->sign($payload) ]);
-    }
-
-    /**
-     * @return array
-     */
-    public function all()
-    {
-        return $this->parameters;
+        return QueryString::normalize([ 'sso' => $payload, 'sig' => $secret->sign($payload) ]);
     }
 
     /**
@@ -65,7 +70,9 @@ class Payload implements \IteratorAggregate, \Countable
      */
     public function add(array $parameters = [])
     {
-        $this->parameters = array_replace($this->parameters, $this->remapKeys($parameters));
+        $this->resolveCustom($parameters);
+
+        $this->data = array_replace($this->data, $parameters);
     }
 
     /**
@@ -73,72 +80,37 @@ class Payload implements \IteratorAggregate, \Countable
      */
     public function set($key, $value)
     {
-        if ('sso_secret' === $key) {
-            $this->setSecret($key);
-            return;
-        }
+        $this->resolveCustom($key);
 
-        $this->parameters[ $this->prefix($key) ] = $value;
+        $this->data[$key] = $value;
     }
 
     /**
-     * Sets the secret key for signing Payload URLs.
+     * Returns the payload data as a query string, appended to the provided url.
      *
-     * @param string|Secret $key
-     * @return $this
-     */
-    public function setSecret($key)
-    {
-        $this->secret = Secret::create($key);
-        return $this;
-    }
-
-    /**
-     * Remaps array keys for custom parameters.
-     *
-     * @param array $parameters
-     * @return array
-     */
-    private function remapKeys(array $parameters)
-    {
-        $keys = array_map(function($key) { return $this->prefix($key); }, array_keys($parameters));
-
-        return array_combine($keys, array_values($parameters));
-    }
-
-    /**
-     * Prefixes a parameter with "custom." if the parameter is not predefined.
-     *
-     * @param string $key
-     * @return string
-     */
-    private function prefix($key)
-    {
-        return ( in_array($key, $this->predefined) || 'custom.' === substr($key, 0, 7) ) ? $key : 'custom.' . $key;
-    }
-
-    /**
      * @param string $baseUrl
      * @return string
      */
-    public function toUrl($baseUrl)
+    public function toUrl($baseUrl = '')
     {
-        return $baseUrl . ( false === (strpos($baseUrl, '?')) ? '?' : '' ) . $this->getQueryString();
+        return $baseUrl . ( false !== (strpos($baseUrl, '?')) ? '&' : '?' ) . $this->getQueryString();
     }
 
     /**
-     * {@inheritDoc}
+     * Adds the key to the customFields array, unless the key is a reserved one.
+     *
+     * @param string|array $key
      */
-    public function getIterator()
+    private function resolveCustom($key)
     {
-        return new \ArrayIterator($this->parameters);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function count()
-    {
-        return count($this->parameters);
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                $this->resolveCustom($k);
+            }
+        } else {
+            if (! in_array($key, $this->reserved)) {
+                $this->customFields[] = $key;
+            }
+        }
     }
 }
